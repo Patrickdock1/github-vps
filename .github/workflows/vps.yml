@@ -1,48 +1,25 @@
-name: Temporary VPS with SSH Access
+name: GitHub VPS
 
-on: workflow_dispatch  # Manually trigger the workflow
+on:
+  schedule:
+    - cron: "0 */6 * * *"  # Runs every 6 hours
+  workflow_dispatch:  # Allows manual start
 
 jobs:
-  run-vps:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Create .env file
         run: |
-          sudo apt update && sudo apt install -y openssh-server ngrok postgresql-client python3-pip
-          pip install psycopg2-binary
+          echo "NEON_DB_HOST=${{ secrets.NEON_DB_HOST }}" >> .env
+          echo "NEON_DB_USER=${{ secrets.NEON_DB_USER }}" >> .env
+          echo "NEON_DB_PASSWORD=${{ secrets.NEON_DB_PASSWORD }}" >> .env
+          echo "NEON_DB_NAME=${{ secrets.NEON_DB_NAME }}" >> .env
+          echo "NEON_DB_SSLMODE=require" >> .env
+          echo "NGROK_AUTH_TOKEN=${{ secrets.NGROK_AUTH_TOKEN }}" >> .env
 
-      - name: Set up SSH server
-        run: |
-          sudo mkdir -p /run/sshd
-          echo "runner:your_password" | sudo chpasswd
-          sudo service ssh start
-
-      - name: Set up ngrok tunnel
-        env:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}  # Your ngrok auth token
-        run: |
-          ngrok authtoken $NGROK_AUTH_TOKEN
-          ngrok tcp 22 --log=stdout > ngrok.log &
-          sleep 5  # Wait for ngrok to start
-          echo "Ngrok tunnel established!"
-          cat ngrok.log
-
-      - name: Print SSH connection details
-        run: |
-          NGROK_URL=$(grep "tcp.ngrok.io" ngrok.log | awk '{print $8}')
-          echo "SSH into the runner using:"
-          echo "ssh runner@$NGROK_URL -p <PORT>"
-          echo "Password: your_password"
-
-      - name: Connect to PostgreSQL database
-        env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-        run: |
-          echo "Connecting to PostgreSQL database..."
-          psql "host=$DB_HOST dbname=$DB_NAME user=$DB_USER password=$DB_PASSWORD" -c "SELECT version();"
+      - name: Print environment variables (for debugging)
+        run: cat .env  # REMOVE THIS LINE IN PRODUCTION TO

@@ -1,11 +1,12 @@
 name: GitHub VPS
 
 on:
-  workflow_dispatch:  # Allow manual trigger only (remove schedule for now)
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 60  # ⏳ Prevent infinite running (auto stops after 1 hour)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,7 +32,7 @@ jobs:
       - name: Display SSH Address
         run: cat ngrok_url.txt
 
-      - name: Keep VPS Running (Timeout 5 hours)
+      - name: Keep VPS Running (Max 1 hour)
         run: |
           echo "VPS is now running..."
-          sleep 18000  
+          sleep 3600  # Limits runtime to 1 hour (3600 sec)

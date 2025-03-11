@@ -1,38 +1,46 @@
-name: GitHub VPS
+name: deploy
 
-on:
-  workflow_dispatch:  # Manual trigger only
+on: 
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # ⏳ Prevent infinite running (auto stops after 1 hour)
+
     steps:
+      - name: Set up job
+        run: echo "Starting deployment process"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y jq
+          sudo apt install -y curl jq
 
       - name: Install Ngrok
         run: |
           curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
           echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install ngrok -y
+          sudo apt update && sudo apt install -y ngrok
 
       - name: Start Ngrok Tunnel (SSH)
         run: |
-          ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
-          nohup ngrok tcp 22 > ngrok.log 2>&1 &  
-          sleep 10  
-          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
+          ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          ngrok tcp 22 > /dev/null &
+          sleep 5
+          curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
 
       - name: Display SSH Address
         run: cat ngrok_url.txt
 
-      - name: Keep VPS Running (Max 1 hour)
+      - name: Show SSH Connection Command
         run: |
-          echo "VPS is now running..."
-          sleep 3600  # Limits runtime to 1 hour (3600 sec)
+          echo "Use this command to connect:"
+          echo "ssh -o 'StrictHostKeyChecking=no' ubuntu@$(cat ngrok_url.txt | sed 's/tcp:\/\///' | cut -d ':' -f 1) -p $(cat ngrok_url.txt | sed 's/tcp:\/\///' | cut -d ':' -f 2)"
+
+      - name: Keep VPS Running (Timeout 5 hours)
+        run: sleep 18000

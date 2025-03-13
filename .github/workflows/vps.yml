@@ -40,7 +40,10 @@ jobs:
       - name: Show SSH Connection Command
         run: |
           echo "Use this command to connect:"
-          echo "ssh -o 'StrictHostKeyChecking=no' ubuntu@$(cat ngrok_url.txt | sed 's/tcp:\/\///' | cut -d ':' -f 1) -p $(cat ngrok_url.txt | sed 's/tcp:\/\///' | cut -d ':' -f 2)"
+          NGROK_URL=$(cat ngrok_url.txt)
+          HOST=$(echo "$NGROK_URL" | sed 's/tcp:\/\///' | cut -d ':' -f 1)
+          PORT=$(echo "$NGROK_URL" | sed 's/tcp:\/\///' | cut -d ':' -f 2)
+          echo "ssh -o 'StrictHostKeyChecking=no' ubuntu@$HOST -p $PORT"
 
       - name: Keep VPS Running (Timeout 5 hours)
         run: sleep 18000

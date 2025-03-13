@@ -46,4 +46,4 @@ jobs:
           echo "ssh -o 'StrictHostKeyChecking=no' ubuntu@$HOST -p $PORT"
 
       - name: Keep VPS Running (Timeout 5 hours)
-        run: sleep 180001
+        run: sleep 18000

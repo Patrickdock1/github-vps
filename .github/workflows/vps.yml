@@ -40,7 +40,11 @@ jobs:
       - name: Show SSH Connection Command
         run: |
           echo "Use this command to connect:"
-          NGROK_URL=$(cat ngrok_url.txt)
+          NGROK_URL=$(cat ngrok_url.txt | tr -d '\r')  # Remove potential newline issues
+          if [ -z "$NGROK_URL" ]; then
+            echo "Error: Ngrok URL not found!"
+            exit 1
+          fi
           HOST=$(echo "$NGROK_URL" | sed 's/tcp:\/\///' | cut -d ':' -f 1)
           PORT=$(echo "$NGROK_URL" | sed 's/tcp:\/\///' | cut -d ':' -f 2)
           echo "ssh -o 'StrictHostKeyChecking=no' ubuntu@$HOST -p $PORT"

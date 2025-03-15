@@ -1,20 +1,14 @@
-name: deploy
+name: Deploy VPS
 
-on: 
-  push:
-    branches:
-      - main
+on: push
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up job
-        run: echo "Starting deployment process"
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
       - name: Install Dependencies
         run: |
@@ -27,39 +21,23 @@ jobs:
           echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
           sudo apt update && sudo apt install -y ngrok
 
+      - name: Debug Ngrok Token (Temporary)
+        run: |
+          echo "Ngrok Token: '${{ secrets.NGROK_AUTH_TOKEN }}'"
+
       - name: Start Ngrok Tunnel (SSH)
         run: |
-          ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          ngrok config add-authtoken '${{ secrets.NGROK_AUTH_TOKEN }}'
           nohup ngrok tcp 22 > ngrok.log 2>&1 &
           sleep 5
           curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
 
-          # Debugging: Check Ngrok output
-          if [ ! -s ngrok_url.txt ]; then
-            echo "Ngrok did not start properly. Printing logs..."
-            cat ngrok.log
-            exit 1
-          fi
-
-          
       - name: Display SSH Address
-        run: |
-          echo "Ngrok URL File Content:"
-          cat ngrok_url.txt || echo "ngrok_url.txt not found!"
+        run: cat ngrok_url.txt
 
       - name: Show SSH Connection Command
         run: |
-          echo "Use this command to connect:"
-          NGROK_URL=$(cat ngrok_url.txt | tr -d '\r' || echo "")
-          
-          if [ -z "$NGROK_URL" ]; then
-            echo "❌ Error: Ngrok URL not found!"
-            exit 1
-          fi
-          
-          HOST=$(echo "$NGROK_URL" | sed 's/tcp:\/\///' | cut -d ':' -f 1)
-          PORT=$(echo "$NGROK_URL" | sed 's/tcp:\/\///' | cut -d ':' -f 2)
-          echo "✅ SSH Command: ssh -o 'StrictHostKeyChecking=no' ubuntu@$HOST -p $PORT"
+          echo "SSH Command: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null runner@$(cat ngrok_url.txt | cut -d'/' -f3)"
 
       - name: Keep VPS Running (Timeout 5 hours)
         run: sleep 18000
